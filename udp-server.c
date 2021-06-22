@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         length = atoi(argv[2]);
     }
 
-    printf("Listen on %d, length %d \r\n", port, length);
+    printf("port %d, length %d \r\n", port, length);
     //Socket
     int socket_server_fd;
     if ((socket_server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
@@ -137,7 +137,6 @@ int main(int argc, char *argv[])
             }
         }
         printf("Connection closed.\r\n");
-        close(connection_fd);
     }
 
     close(socket_server_fd);
