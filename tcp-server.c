@@ -1,39 +1,91 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 
 #define LISTEN_PORT 10000
+#define LENGTH 6000
+#define REQUEST_QUEUE 10
+#define RECV_TIMEOUT 30
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-    int socker_server_fd;
+    int port = LISTEN_PORT;
+    if (3 == argc && argv[1] != NULL)
+    {
+        port = atoi(argv[1]);
+    }
 
+    int length = LENGTH;
+    if (3 == argc && argv[2] != NULL)
+    {
+        length = atoi(argv[2]);
+    }
+
+    printf("Listen on %d, length %d", port, length);
+    //Socket
+    int socket_server_fd;
+    if ((socket_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    {
+        printf("socket error(%d): %s\r\n", errno, strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    //Set recv timeout
+    struct timeval tv;
+    tv.tv_sec = RECV_TIMEOUT;
+    tv.tv_usec = 0;
+    setsockopt(socket_server_fd, SOL_SOCKET, SO_RCVTIMEO, (const void *)&tv, sizeof(tv));
+
+    //listen local address
     struct sockaddr_in servaddr;
-
-    memset(&servaddr, 0, sizeof(servaddr));
+    memset(&servaddr, 0x00, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(LISTEN_PORT);
 
-    if ((socker_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    //bind local port
+    if (bind(socket_server_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1)
     {
-        printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
-        return 1;
+        printf("bind port(%d) error(%d): %s\r\n", LISTEN_PORT, errno, strerror(errno));
+        return EXIT_FAILURE;
     }
 
-    if (bind(socker_server_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1)
+    //listen port
+    if (listen(socket_server_fd, REQUEST_QUEUE) == -1)
     {
-        printf("bind port(%d) error: %s(errno: %d)\n", LISTEN_PORT, strerror(errno), errno);
-        return 1;
+        printf("listen port(%d) error(%d): %s\r\n", LISTEN_PORT, errno, strerror(errno));
+        return EXIT_FAILURE;
     }
 
-    if (listen(socker_server_fd, 10) == -1)
+    printf("Listen on port:%d\r\n", LISTEN_PORT);
+
+    while (true)
     {
-        printf("listen port(%d) error: %s(errno: %d)\n", LISTEN_PORT, strerror(errno), errno);
-        return 0;
+        int connection_fd;
+        if ((connection_fd = accept(socket_server_fd, (struct sockaddr *)NULL, NULL)) == -1)
+        {
+            printf("accept connection error(%d): %s\r\n", errno, strerror(errno));
+            continue;
+        }
+
+        unsigned char *buff;
+        buff = malloc(length);
+        memset(buff, 0x00, length);
+
+        int n = recv(connection_fd, buff, length, 0);
+
+        buff[n] = '\0';
+        printf("recv msg from client: %s\n", buff);
+        close(connection_fd);
     }
+
+    close(socket_server_fd);
 
     printf("done.");
-    return 0;
+    return EXIT_SUCCESS;
 }
