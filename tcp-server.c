@@ -6,11 +6,16 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
+#include <zlib.h>
+
+#include "MD5.h"
 
 #define LISTEN_PORT 10000
 #define LENGTH 6000
 #define REQUEST_QUEUE 10
 #define RECV_TIMEOUT 30
+
+typedef unsigned char BYTE;
 
 int main(int argc, char *argv[])
 {
@@ -43,7 +48,7 @@ int main(int argc, char *argv[])
 
     //listen local address
     struct sockaddr_in servaddr;
-    memset(&servaddr, 0x00, sizeof(servaddr));
+    memset((void *)&servaddr, 0x00, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(LISTEN_PORT);
@@ -78,11 +83,10 @@ int main(int argc, char *argv[])
 
         while (true)
         {
-            unsigned char *buff;
-            buff = malloc(length + 1); //add 1 for the end of string \0
-            memset(buff, 0x00, length);
+            BYTE *buffer;
+            buffer = calloc(length + 1, sizeof(BYTE)); //add 1 for the end of string \0
 
-            int n = recv(connection_fd, buff, length, 0);
+            int n = recv(connection_fd, (void *)buffer, length, 0);
             if (0 == n)
             {
                 printf("Connection was closed by peer.\r\n");
@@ -93,7 +97,8 @@ int main(int argc, char *argv[])
                 printf("receive data error(%d): %s\r\n", errno, strerror(errno));
                 break;
             }
-
+            
+            free(buffer);
             printf("received length(%d) buff: %s\n", n, buff);
         }
         printf("Connection closed.\r\n");
