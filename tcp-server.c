@@ -124,17 +124,24 @@ int main(int argc, char *argv[])
             memset(buffer, 0x00, header.data_length + 1);
 
             //receive data
-            int n_data = recv(connection_fd, (void *)&buffer, header.data_length, 0);
-            if (0 == n_data)
+            int data_receive = 0;
+            while (data_receive < header.data_length)
             {
-                printf("Connection was closed by peer.\r\n");
-                break;
-            }
-            else if (-1 == n_data)
-            {
-                int er = errno;
-                printf("receive data error(%d): %s\r\n", er, strerror(er));
-                break;
+                int to_recv = header.data_length - data_receive;
+                int n_data = recv(connection_fd, (void *)&buffer[data_receive], to_recv, 0);
+                if (0 == n_data)
+                {
+                    printf("Connection was closed by peer.\r\n");
+                    break;
+                }
+                else if (-1 == n_data)
+                {
+                    int er = errno;
+                    printf("receive data error(%d): %s\r\n", er, strerror(er));
+                    break;
+                }
+                data_receive += n_data;
+                printf("Received data length(%d),total(%d), expect(%d) \r\n", n_data, data_receive, header.data_length);
             }
 
             uLong data_crc = crc32(0L, (const Bytef *)buffer, header.data_length);
@@ -144,7 +151,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("received length(%d) data: %s\n", n_data, buffer);
+                printf("Total received length(%d) data: %s\n", data_receive, buffer);
             }
         }
         printf("Connection closed.\r\n");
