@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     printf("port %d, length %d \r\n", port, length);
     //Socket
     int socket_server_fd;
-    if ((socket_server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    if ((socket_server_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
         printf("socket error(%d): %s\r\n", errno, strerror(errno));
         return EXIT_FAILURE;
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
             {
                 //bytes to receive
                 int to_recv = header.data_length - data_receive;
-                int n_data = recvfrom(socket_server_fd, (void *)&header, sizeof(header), 0, (struct sockaddr *)&cliaddr, &sockaddr_len);
+                int n_data = recvfrom(socket_server_fd, (void *)&buffer[data_receive], to_recv, 0, (struct sockaddr *)&cliaddr, &sockaddr_len);
                 if (0 == n_data)
                 {
                     printf("the peer has performed an orderly shutdown.\r\n");

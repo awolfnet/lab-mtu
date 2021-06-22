@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     printf("Listen on %d, length %d \r\n", port, length);
     //Socket
     int socket_server_fd;
-    if ((socket_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    if ((socket_server_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
     {
         printf("socket error(%d): %s\r\n", errno, strerror(errno));
         return EXIT_FAILURE;

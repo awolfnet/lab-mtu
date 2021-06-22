@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
         times = atoi(argv[4]);
     }
 
-    printf("Connect to %s:%d, send data length %d\r\n", address, port, length);
+    printf("Send to %s:%d, send data length %d, times %d\r\n", address, port, length, times);
 
     struct sockaddr_in servaddr;
     memset((void *)&servaddr, 0x00, sizeof(servaddr));
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
     //Socket
     int socket_client_fd;
-    if ((socket_client_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    if ((socket_client_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
     {
         printf("socket error(%d): %s\r\n", errno, strerror(errno));
         return EXIT_FAILURE;
@@ -111,13 +111,13 @@ int main(int argc, char *argv[])
         int header_length = sizeof(header);
         printf("Sendig %d\r\n", times);
         printf("Sending header, length(%d), syn(%x), datalength(%u), datachecksum(%u), headerchecksum(%u)\r\n", header_length, *header.syn, header.data_length, header.data_checksum, header.header_checksum);
-        if (send(socket_client_fd, &header, header_length, 0) < 0)
+        if (send(socket_client_fd, &header, header_length, 0) == -1)
         {
             printf("send header error(%d): %s\r\n", errno, strerror(errno));
             break;
         }
         printf("Sending data, length(%d)\r\n", length);
-        if (send(socket_client_fd, buffer, length, 0) < 0)
+        if (send(socket_client_fd, buffer, length, 0) == -1)
         {
             printf("send data error(%d): %s\r\n", errno, strerror(errno));
             break;

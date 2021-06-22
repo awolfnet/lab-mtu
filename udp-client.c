@@ -53,12 +53,14 @@ int main(int argc, char *argv[])
         times = atoi(argv[4]);
     }
 
-    printf("Connect to %s:%d, send data length %d\r\n", address, port, length);
+    printf("Send to %s:%d, send data length %d, times %d\r\n", address, port, length, times);
 
     struct sockaddr_in servaddr;
     memset((void *)&servaddr, 0x00, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
+    // servaddr.sin_addr.s_addr=inet_addr(address);
+
     if (inet_pton(AF_INET, address, &servaddr.sin_addr) == -1)
     {
         printf("ip addess not correct %s\r\n", address);
@@ -67,20 +69,13 @@ int main(int argc, char *argv[])
 
     //Socket
     int socket_client_fd;
-    if ((socket_client_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    if ((socket_client_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
         printf("socket error(%d): %s\r\n", errno, strerror(errno));
         return EXIT_FAILURE;
     }
 
-    //Connect to server
-    if (connect(socket_client_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1)
-    {
-        printf("connect to server error(%d): %s\r\n", errno, strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    printf("Connected.\r\n");
+    printf("Send data.\r\n");
 
     BYTE *buffer = calloc(length, sizeof(BYTE));
     while (times-- > 0)
@@ -111,13 +106,17 @@ int main(int argc, char *argv[])
         int header_length = sizeof(header);
         printf("Sendig %d\r\n", times);
         printf("Sending header, length(%d), syn(%x), datalength(%u), datachecksum(%u), headerchecksum(%u)\r\n", header_length, *header.syn, header.data_length, header.data_checksum, header.header_checksum);
-        if (send(socket_client_fd, &header, header_length, 0) < 0)
+
+        int sockaddr_len = sizeof(servaddr);
+        if (sendto(socket_client_fd, (const char *)&header, header_length, 0, &servaddr, sockaddr_len) == -1)
         {
             printf("send header error(%d): %s\r\n", errno, strerror(errno));
             break;
         }
+
         printf("Sending data, length(%d)\r\n", length);
-        if (send(socket_client_fd, buffer, length, 0) < 0)
+
+        if (sendto(socket_client_fd, (const char *)buffer, length, 0, &servaddr, sockaddr_len) == -1)
         {
             printf("send data error(%d): %s\r\n", errno, strerror(errno));
             break;
