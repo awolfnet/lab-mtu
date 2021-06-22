@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
         length = atoi(argv[2]);
     }
 
-    printf("Listen on %d, length %d", port, length);
+    printf("Listen on %d, length %d \r\n", port, length);
     //Socket
     int socket_server_fd;
     if ((socket_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
 
     while (true)
     {
+        printf("Waiting for connection.\r\n");
         int connection_fd;
         if ((connection_fd = accept(socket_server_fd, (struct sockaddr *)NULL, NULL)) == -1)
         {
@@ -73,14 +74,29 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        unsigned char *buff;
-        buff = malloc(length);
-        memset(buff, 0x00, length);
+        printf("Connection accepted.\r\n");
 
-        int n = recv(connection_fd, buff, length, 0);
+        while (true)
+        {
+            unsigned char *buff;
+            buff = malloc(length + 1); //add 1 for the end of string \0
+            memset(buff, 0x00, length);
 
-        buff[n] = '\0';
-        printf("recv msg from client: %s\n", buff);
+            int n = recv(connection_fd, buff, length, 0);
+            if (0 == n)
+            {
+                printf("Connection was closed by peer.\r\n");
+                break;
+            }
+            else if (-1 == n)
+            {
+                printf("receive data error(%d): %s\r\n", errno, strerror(errno));
+                break;
+            }
+
+            printf("received length(%d) buff: %s\n", n, buff);
+        }
+        printf("Connection closed.\r\n");
         close(connection_fd);
     }
 
