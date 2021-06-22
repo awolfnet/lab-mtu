@@ -8,14 +8,21 @@
 #include <sys/time.h>
 #include <zlib.h>
 
-#include "MD5.h"
-
 #define LISTEN_PORT 10000
 #define LENGTH 6000
 #define REQUEST_QUEUE 10
 #define RECV_TIMEOUT 30
 
 typedef unsigned char BYTE;
+
+typedef struct
+{
+    BYTE tag;
+    BYTE syn[8];
+    int data_length;
+    uLong data_checksum;
+    uLong header_checksum;
+} HEADER;
 
 int main(int argc, char *argv[])
 {
@@ -83,23 +90,62 @@ int main(int argc, char *argv[])
 
         while (true)
         {
-            BYTE *buffer;
-            buffer = calloc(length + 1, sizeof(BYTE)); //add 1 for the end of string \0
 
-            int n = recv(connection_fd, (void *)buffer, length, 0);
-            if (0 == n)
+            HEADER header;
+            memset((void *)&header, 0x00, sizeof(header));
+
+            //receive header
+            int n_header = recv(connection_fd, (void *)&header, sizeof(header), 0);
+            if (0 == n_header)
             {
                 printf("Connection was closed by peer.\r\n");
                 break;
             }
-            else if (-1 == n)
+            else if (-1 == n_header)
             {
-                printf("receive data error(%d): %s\r\n", errno, strerror(errno));
+                printf("receive header error(%d): %s\r\n", errno, strerror(errno));
                 break;
             }
-            
-            free(buffer);
-            printf("received length(%d) buff: %s\n", n, buff);
+
+            printf("Header received, syn(%x), datalength(%u), datachecksum(%u), headerchecksum(%u)\r\n", *header.syn, header.data_length, header.data_checksum, header.header_checksum);
+
+            uLong header_crc_original = header.header_checksum;
+            header.header_checksum = 0L;
+            uLong header_crc = crc32(0L, (const Bytef *)&header, sizeof(header));
+
+            //Check header checksum, make sure header is correct, can receive correct data with length
+            if (header_crc_original != header_crc)
+            {
+                printf("Header crc was not matched, header maybe wrong.\r\n");
+                break;
+            }
+
+            BYTE buffer[header.data_length + 1]; //Add 1 for end of string '\0
+            memset(buffer, 0x00, header.data_length + 1);
+
+            //receive data
+            int n_data = recv(connection_fd, (void *)&buffer, header.data_length, 0);
+            if (0 == n_data)
+            {
+                printf("Connection was closed by peer.\r\n");
+                break;
+            }
+            else if (-1 == n_data)
+            {
+                int er = errno;
+                printf("receive data error(%d): %s\r\n", er, strerror(er));
+                break;
+            }
+
+            uLong data_crc = crc32(0L, (const Bytef *)buffer, header.data_length);
+            if (header.data_checksum != data_crc)
+            {
+                printf("Data crc was not matched, data maybe wrong.\r\n");
+            }
+            else
+            {
+                printf("received length(%d) data: %s\n", n_data, buffer);
+            }
         }
         printf("Connection closed.\r\n");
         close(connection_fd);
