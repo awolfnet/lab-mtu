@@ -41,17 +41,11 @@ int main(int argc, char *argv[])
     printf("Listen on %d, length %d \r\n", port, length);
     //Socket
     int socket_server_fd;
-    if ((socket_server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    if ((socket_server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
         printf("socket error(%d): %s\r\n", errno, strerror(errno));
         return EXIT_FAILURE;
     }
-
-    //Set recv timeout
-    struct timeval tv;
-    tv.tv_sec = RECV_TIMEOUT;
-    tv.tv_usec = 0;
-    setsockopt(socket_server_fd, SOL_SOCKET, SO_RCVTIMEO, (const void *)&tv, sizeof(tv));
 
     //listen local address
     struct sockaddr_in servaddr;
@@ -67,38 +61,25 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    //listen port
-    if (listen(socket_server_fd, REQUEST_QUEUE) == -1)
-    {
-        printf("listen port(%d) error(%d): %s\r\n", LISTEN_PORT, errno, strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    printf("Listen on port:%d\r\n", LISTEN_PORT);
+    printf("Bind on port:%d\r\n", LISTEN_PORT);
 
     while (true)
     {
-        printf("Waiting for connection.\r\n");
-        int connection_fd;
-        if ((connection_fd = accept(socket_server_fd, (struct sockaddr *)NULL, NULL)) == -1)
-        {
-            printf("accept connection error(%d): %s\r\n", errno, strerror(errno));
-            continue;
-        }
-
-        printf("Connection accepted.\r\n");
+        printf("Waiting for data.\r\n");
 
         while (true)
         {
+            struct sockaddr_in cliaddr;
 
             HEADER header;
             memset((void *)&header, 0x00, sizeof(header));
 
             //receive header
-            int n_header = recv(connection_fd, (void *)&header, sizeof(header), 0);
+            int sockaddr_len = sizeof(cliaddr);
+            int n_header = recvfrom(socket_server_fd, (void *)&header, sizeof(header), 0, (struct sockaddr *)&cliaddr, &sockaddr_len);
             if (0 == n_header)
             {
-                printf("Connection was closed by peer.\r\n");
+                printf("the peer has performed an orderly shutdown.\r\n");
                 break;
             }
             else if (-1 == n_header)
@@ -129,10 +110,10 @@ int main(int argc, char *argv[])
             {
                 //bytes to receive
                 int to_recv = header.data_length - data_receive;
-                int n_data = recv(connection_fd, (void *)&buffer[data_receive], to_recv, 0);
+                int n_data = recvfrom(socket_server_fd, (void *)&header, sizeof(header), 0, (struct sockaddr *)&cliaddr, &sockaddr_len);
                 if (0 == n_data)
                 {
-                    printf("Connection was closed by peer.\r\n");
+                    printf("the peer has performed an orderly shutdown.\r\n");
                     break;
                 }
                 else if (-1 == n_data)
