@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("Total received length(%d) data: %s\n", data_receive, buffer);
+                printf("Total received length(%d) and checksum correct\r\n", data_receive);
             }
         }
         printf("Connection closed.\r\n");
